@@ -6,13 +6,16 @@ use cosmwasm_std::{
     from_binary, from_slice, to_binary, Coin, ContractResult, Decimal, OwnedDeps, Querier,
     QuerierResult, QueryRequest, SystemError, SystemResult, Uint128, WasmQuery,
 };
-use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg};
+use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
 
 use std::collections::HashMap;
 
 use terra_cosmwasm::{TaxCapResponse, TaxRateResponse, TerraQuery, TerraQueryWrapper, TerraRoute};
 use terraswap::asset::{AssetInfo, PairInfo};
 
+use cosmwasm_bignumber::{Decimal256, Uint256};
+use crate::market::{ExecuteMsg as AnchorMarket, Cw20HookMsg,
+    QueryMsg as AnchorQuery, EpochStateResponse};   
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
 pub fn mock_dependencies(
@@ -129,6 +132,8 @@ impl Querier for WasmMockQuerier {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     Pair { asset_infos: [AssetInfo; 2] },
+    TokenInfo { },
+    EpochState{ block_height: Option<u64>, distributed_interest: Option<Uint256>}
 }
 
 impl WasmMockQuerier {
@@ -180,6 +185,20 @@ impl WasmMockQuerier {
                             request: msg.as_slice().into(),
                         }),
                     }
+                }
+                Ok(QueryMsg::TokenInfo{ }) => {
+                    SystemResult::Ok(ContractResult::from(to_binary(&TokenInfoResponse {
+                        name: "CW20 token".to_string(),
+                        symbol: "token".to_string(),
+                        decimals: 6,
+                        total_supply: Uint128::from(1_000_000_000u128),
+                    })))
+                }
+                Ok(QueryMsg::EpochState{block_height, distributed_interest}) => {
+                    SystemResult::Ok(ContractResult::from(to_binary(&EpochStateResponse{
+                        exchange_rate: Decimal256(1_000_000_000_000_000_000u64.into()),
+                        aterra_supply: Uint256::from(0u128),
+                    })))
                 }
                 _ => match from_binary(msg).unwrap() {
                     Cw20QueryMsg::Balance { address } => {

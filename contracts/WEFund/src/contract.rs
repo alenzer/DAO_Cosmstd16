@@ -84,6 +84,7 @@ pub fn execute(
         ExecuteMsg::SetConfig{ admin, wefund, anchor_market, aust_token, vesting_contract } 
             => try_setconfig(deps, _env, info, admin, wefund, anchor_market, aust_token, vesting_contract),
         ExecuteMsg::AddProject { 
+            project_id,
             project_company,
             project_title,
             project_description,
@@ -99,9 +100,16 @@ pub fn execute(
             project_milestones,
             project_teammembers,
             vesting,
-            token_addr
+            token_addr,
+
+            country,
+            cofounder_name,
+            service_wefund,
+            service_charity,
+            professional_link,
         } => 
             try_addproject(deps, _env, info, 
+                project_id,
                 project_company,
                 project_title,
                 project_description,
@@ -117,7 +125,13 @@ pub fn execute(
                 project_milestones,
                 project_teammembers,
                 vesting,
-                token_addr
+                token_addr,
+
+                country,
+                cofounder_name,
+                service_wefund,
+                service_charity,
+                professional_link,
             ),
 
         ExecuteMsg::Back2Project { project_id, backer_wallet, fundraising_stage, token_amount, otherchain, otherchain_wallet} => 
@@ -262,7 +276,7 @@ pub fn try_releasemilestone(deps: DepsMut, _env: Env, _project_id: Uint128 )
         }
     )?;
     let epoch_exchange_rate = convert_str_int(epoch.exchange_rate.to_string());
-    
+
     if estimate_exchange_rate < epoch_exchange_rate{
         estimate_exchange_rate = epoch_exchange_rate;
     }
@@ -302,6 +316,8 @@ pub fn try_releasemilestone(deps: DepsMut, _env: Env, _project_id: Uint128 )
         CosmosMsg::Bank(send2_creator)])
     .add_attribute("action", "release milestone")
     .add_attribute("epoch_exchange_rate", epoch.exchange_rate.to_string())
+    .add_attribute("estimate_exchange_rate", estimate_exchange_rate.to_string())
+    .add_attribute("total_deposited", total_deposited.to_string())
     )
 }
 pub fn try_setmilestonevote(deps: DepsMut, _env:Env, info:MessageInfo, project_id: Uint128, wallet: String, voted: bool)
@@ -790,6 +806,7 @@ pub fn try_addproject(
     deps:DepsMut,
     _env: Env,
     _info: MessageInfo,
+    _project_id: Uint128,
     _project_company: String,
     _project_title: String,
     _project_description: String,
@@ -806,6 +823,12 @@ pub fn try_addproject(
     _project_teammembers: Vec<TeamMember>,
     _vesting: Vec<VestingParameter>,
     _token_addr: String,
+
+    _country: String,
+    _cofounder_name: String,
+    _service_wefund: String,
+    _service_charity: String,
+    _professional_link: String,
 ) -> Result<Response, ContractError> 
 {
     let token_addr = deps.api.addr_validate(_token_addr.as_str())
@@ -842,9 +865,19 @@ pub fn try_addproject(
 
         vesting: _vesting.clone(),
         token_addr: token_addr.clone(),
+
+        country: _country,
+        cofounder_name: _cofounder_name,
+        service_wefund: _service_wefund,
+        service_charity: _service_charity,
+        professional_link: _professional_link 
     };
 
-    save_projectstate(deps.storage, &mut new_project)?;
+    if _project_id == Uint128::zero() {
+        save_projectstate(deps.storage, &mut new_project)?;
+    }else{
+        PROJECTSTATES.save(deps.storage, _project_id.u128().into(), &new_project)?;
+    }
 
     let config = CONFIG.load(deps.storage)?;
     if config.vesting_contract != "".to_string() && token_addr != "".to_string()
@@ -924,7 +957,7 @@ pub fn try_back2project(
         fund_wefund.amount = Uint128::new(1 * UST);
     }
 
-    let backer_wallet = deps.api.addr_validate(&backer_wallet).unwrap();
+    let backer_wallet = deps.api.addr_validate(&backer_wallet)?;
 
     //--------check community and calc backed amount----------------
     let community = COMMUNITY.load(deps.storage)?;
@@ -1001,6 +1034,7 @@ pub fn try_back2project(
                 x.token_addr.clone(),
                 &Cw20QueryMsg::TokenInfo{}
             )?;
+
             token_amount = token_amount * 
                 Uint128::new((10 as u128).pow(token_info.decimals as u32)); //for decimals
             

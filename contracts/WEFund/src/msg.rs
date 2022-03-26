@@ -19,6 +19,7 @@ pub enum ExecuteMsg {
         anchor_market: Option<String>, aust_token:Option<String> , 
         vesting_contract:Option<String>},
     AddProject { 
+        project_id: Uint128,
         project_company: String,
         project_title: String,
         project_description: String,
@@ -34,7 +35,13 @@ pub enum ExecuteMsg {
         project_milestones: Vec<Milestone>,
         project_teammembers: Vec<TeamMember>,
         vesting: Vec<VestingParameter>,
-        token_addr: String
+        token_addr: String,
+
+        country: String,
+        cofounder_name: String,
+        service_wefund: String,
+        service_charity: String,
+        professional_link: String
     },
     RemoveProject{project_id: Uint128 },
 

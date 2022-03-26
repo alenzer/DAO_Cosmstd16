@@ -83,6 +83,12 @@ pub struct ProjectState{
     pub project_whitepaper: String,
     pub project_website: String,
     pub project_email: String,
+
+    pub country: String,
+    pub cofounder_name: String,
+    pub service_wefund: String,
+    pub service_charity: String,
+    pub professional_link: String,
 //------------------------------------------------------------------------------
     pub project_id: Uint128,
     pub creator_wallet: Addr,
