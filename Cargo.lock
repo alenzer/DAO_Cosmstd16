@@ -697,6 +697,8 @@ dependencies = [
  "cw20",
  "schemars",
  "serde",
+ "terra-cosmwasm",
+ "terraswap",
  "thiserror",
 ]
 
