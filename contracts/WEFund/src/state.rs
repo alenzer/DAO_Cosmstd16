@@ -49,6 +49,7 @@ pub struct TeamMember{
     pub teammember_description: String,
     pub teammember_linkedin: String,
     pub teammember_role: String,
+    pub teammember_name: String,
 }
 //--------------Milestone---------------------------------------
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
