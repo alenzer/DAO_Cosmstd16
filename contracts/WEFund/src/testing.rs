@@ -60,6 +60,7 @@ fn workflow(){
     let milestone1 = Milestone{
         milestone_step: Uint128::new(0),
         milestone_name: String::from("milestone1"),
+        milestone_type: "type".to_string(),
         milestone_description: String::from("mileston1"),
         milestone_startdate: String::from("startdate"),
         milestone_enddate: String::from("enddate"),
@@ -70,6 +71,7 @@ fn workflow(){
     let milestone2 = Milestone{
         milestone_step: Uint128::new(1),
         milestone_name: String::from("milestone2"),
+        milestone_type: "type".to_string(),
         milestone_description: String::from("mileston2"),
         milestone_startdate: String::from("startdate"),
         milestone_enddate: String::from("enddate"),

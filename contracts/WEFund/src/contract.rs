@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     Addr, to_binary, DepsMut, Env, MessageInfo, Response, StdResult,
     Uint128, CosmosMsg, BankMsg, QueryRequest, BankQuery, WasmMsg,
-    Coin, AllBalanceResponse
+    Coin, AllBalanceResponse, SubMsg
 };
 use cw2::set_contract_version;
 use cw_storage_plus::{U128Key};
@@ -12,7 +12,8 @@ use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, BalanceResponse as Cw20BalanceResponse,
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg};
 use crate::state::{Config, CONFIG, PROJECTSTATES, ProjectState, BackerState, VestingParameter,
-        PROJECT_SEQ, COMMUNITY, Milestone, Vote, save_projectstate, TeamMember, ProjectStatus};
+        PROJECT_SEQ, COMMUNITY, Milestone, Vote, save_projectstate, TeamMember, ProjectStatus,
+        AUST_AMOUNT};
 
 use crate::market::{ExecuteMsg as AnchorMarket, Cw20HookMsg,
     QueryMsg as AnchorQuery, EpochStateResponse};                    
@@ -66,9 +67,9 @@ pub fn instantiate(
     };
 
     CONFIG.save(deps.storage, &config)?;
-    PROJECT_SEQ.save(deps.storage, &Uint128::new(0))?;
+    PROJECT_SEQ.save(deps.storage, &Uint128::zero())?;
     COMMUNITY.save(deps.storage, &Vec::new())?;
-
+    AUST_AMOUNT.save(deps.storage, &Uint128::zero())?;
     Ok(Response::new()
         .add_attribute("method", "instantiate"))
 }
@@ -845,10 +846,8 @@ pub fn try_addproject(
         project_whitepaper: _project_whitepaper,
         project_website: _project_website,
         project_email: _project_email,
-
+//-----------------------------------
         project_id: Uint128::zero(), //auto increment
-        creator_wallet: deps.api.addr_validate(&_creator_wallet).unwrap(),
-        project_collected: _project_collected,
         project_status: ProjectStatus::WefundVote,
         fundraising_stage: Uint128::zero(),
 
@@ -858,14 +857,16 @@ pub fn try_addproject(
         backer_states: Vec::new(),
         communitybacker_states: Vec::new(),
 
-        milestone_states: _project_milestones,
         project_milestonestep: Uint128::zero(), //first milestonestep
+//-------------------------------------------
+        creator_wallet: deps.api.addr_validate(&_creator_wallet).unwrap(),
+        project_collected: _project_collected,
 
+        milestone_states: _project_milestones,
         teammember_states: _project_teammembers,
-
         vesting: _vesting.clone(),
         token_addr: token_addr.clone(),
-
+//---------------------------------------------------
         country: _country,
         cofounder_name: _cofounder_name,
         service_wefund: _service_wefund,
@@ -876,6 +877,16 @@ pub fn try_addproject(
     if _project_id == Uint128::zero() {
         save_projectstate(deps.storage, &mut new_project)?;
     }else{
+        let x = PROJECTSTATES.load(deps.storage, _project_id.u128().into())?;
+        new_project.project_id = x.project_id;
+        new_project.project_status = x.project_status;
+        new_project.fundraising_stage = x.fundraising_stage;
+        new_project.backerbacked_amount = x.backerbacked_amount;
+        new_project.communitybacked_amount = x.communitybacked_amount;
+        new_project.backer_states = x.backer_states;
+        new_project.communitybacker_states = x.communitybacker_states;
+        new_project.project_milestonestep = x.project_milestonestep;
+
         PROJECTSTATES.save(deps.storage, _project_id.u128().into(), &new_project)?;
     }
 
@@ -1086,12 +1097,14 @@ pub fn try_back2project(
     let anchormarket = config.anchor_market;
 
     //----------deposite to anchor market------------------------
-    let deposite_project = WasmMsg::Execute {
+    let deposit_msg: SubMsg = SubMsg::reply_on_success(
+        CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: String::from(anchormarket),
             msg: to_binary(&AnchorMarket::DepositStable {}).unwrap(),
             funds: vec![fund_real_back]
-    };
-    msgs.push(CosmosMsg::Wasm(deposite_project));
+        }),
+        1
+    );
 
     //---------send to Wefund with 5/105--------------------
     let bank_wefund = BankMsg::Send { 
@@ -1119,6 +1132,7 @@ pub fn try_back2project(
     }
 
     Ok(Response::new()
+    .add_submessage(deposit_msg)
     .add_messages(msgs)
     .add_attribute("action", "back to project")
     )

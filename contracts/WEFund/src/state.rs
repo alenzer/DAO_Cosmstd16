@@ -36,6 +36,7 @@ pub struct Vote{
 pub struct Milestone{
     pub milestone_step: Uint128,
     pub milestone_name: String,
+    pub milestone_type: String,
     pub milestone_description: String,
     pub milestone_startdate: String,
     pub milestone_enddate: String,
@@ -134,3 +135,4 @@ pub fn save_projectstate(store: &mut dyn Storage, _prj: &mut ProjectState)
 
 //------------community array------------------------------------------------
 pub const COMMUNITY: Item<Vec<Addr>> = Item::new("community");
+pub const AUST_AMOUNT: Item<Uint128> = Item::new("aust amount");
