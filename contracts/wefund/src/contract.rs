@@ -10,14 +10,17 @@ use cw_storage_plus::{U128Key};
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, BalanceResponse as Cw20BalanceResponse, TokenInfoResponse};
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg};
-use crate::state::{Config, CONFIG, PROJECTSTATES, ProjectState, BackerState, VestingParameter,
-        PROJECT_SEQ, COMMUNITY, Milestone, Vote, save_projectstate, TeamMember, ProjectStatus,
-        AUST_AMOUNT, UUSD_AMOUNT, PROJECT_ID, PROFIT, WhitelistState};
+use Interface::wefund::{ExecuteMsg, InstantiateMsg, Config, ProjectState, BackerState,
+    VestingParameter,TeamMember, ProjectStatus, Milestone, Vote, WhitelistState
+};
+use crate::state::{CONFIG, PROJECTSTATES, PROJECT_SEQ, COMMUNITY,  save_projectstate, 
+        AUST_AMOUNT, UUSD_AMOUNT, PROJECT_ID, PROFIT};
 
 use Interface::market::{ExecuteMsg as AnchorMarket, Cw20HookMsg,
     QueryMsg as AnchorQuery, EpochStateResponse};                    
-use Vesting::msg::{ExecuteMsg as VestingMsg, VestingParameter as VestingParam};
+use Interface::vesting::{ExecuteMsg as VestingMsg, QueryMsg as VestingQuery,
+    VestingParameter as VestingParam, 
+    ProjectInfo as VestingProjectInfo};
 use Interface::staking::{CardType};
 
 // version info for migration info
@@ -177,8 +180,8 @@ pub fn execute(
         ExecuteMsg::SetProjectStatus{project_id, status} =>
             try_setprojectstatus(deps, info, project_id, status),
 
-        ExecuteMsg::OpenWhitelist{project_id} =>
-            try_openwhitelist(deps, _env, info, project_id),
+        ExecuteMsg::OpenWhitelist{project_id, holder_alloc} =>
+            try_openwhitelist(deps, _env, info, project_id, holder_alloc),
         
         ExecuteMsg::RegisterWhitelist{project_id, card_type} =>
             try_registerwhitelist(deps, _env, info, project_id, card_type),
@@ -203,12 +206,14 @@ pub fn try_setprojectstatus(deps: DepsMut, info: MessageInfo, project_id: Uint12
             if status == Uint128::zero() {
                 project.project_status = ProjectStatus::WefundVote;
             } else if status == Uint128::from(1u64){
-                project.project_status = ProjectStatus::Fundraising;
+                project.project_status = ProjectStatus::Whitelist;
             } else if status == Uint128::from(2u64){
-                project.project_status = ProjectStatus::Releasing;
+                project.project_status = ProjectStatus::Fundraising;
             } else if status == Uint128::from(3u64){
-                project.project_status = ProjectStatus::Done;
+                project.project_status = ProjectStatus::Releasing;
             } else if status == Uint128::from(4u64){
+                project.project_status = ProjectStatus::Done;
+            } else if status == Uint128::from(5u64){
                 project.project_status = ProjectStatus::Fail;
             }
             Ok(project)
@@ -721,6 +726,9 @@ pub fn try_addproject(
         project_milestonestep: Uint128::zero(), //first milestonestep
 
         whitelist: Vec::new(),
+        holder_alloc: Uint128::zero(),
+        holder_ticket: Uint128::zero(),
+        community_ticket: Uint128::zero(),
 //-------------------------------------------
         creator_wallet: deps.api.addr_validate(&_creator_wallet).unwrap(),
         project_collected: _project_collected,
@@ -749,6 +757,9 @@ pub fn try_addproject(
         new_project.backer_states = x.backer_states;
         new_project.project_milestonestep = x.project_milestonestep;
         new_project.whitelist = x.whitelist;
+        new_project.holder_alloc = x.holder_alloc;
+        new_project.holder_ticket = x.holder_ticket;
+        new_project.community_ticket = x.community_ticket;
         PROJECTSTATES.save(deps.storage, _project_id.u128().into(), &new_project)?;
     }
 
@@ -838,11 +849,17 @@ pub fn try_back2project(
     // if x.backerbacked_amount >= collected{
     //     return Err(ContractError::AlreadyCollected{});
     // }
+    //-----sum in whitelist-------------------
+    let index = x.whitelist.iter().position(|x| x.wallet == backer_wallet.clone());
+    if index == None{
+        return Err(ContractError::NotRegisteredWhitelist{ });
+    }
+
+    x.whitelist[index.unwrap()].backed += fund_real_back.amount;
     x.backerbacked_amount += fund_real_back.amount;
-    
-    //------push to new backer------------------
+
     let new_baker:BackerState = BackerState{
-        backer_wallet: backer_wallet,
+        backer_wallet: backer_wallet.clone(),
         otherchain: otherchain,
         otherchain_wallet: otherchain_wallet,
         ust_amount: fund_real_back.clone(),
@@ -958,14 +975,13 @@ pub fn try_back2project(
     };
     msgs.push(CosmosMsg::Bank(bank_wefund));
 
-    let x = PROJECTSTATES.load(deps.storage, project_id.u128().into())?;
-    if config.vesting_contract != "".to_string() && x.token_addr != "".to_string() {
+    if config.vesting_contract != "".to_string(){
         //----------add fundraising user------------------------
         let add_fundraising_user = WasmMsg::Execute {
             contract_addr: config.vesting_contract.to_string(),
             msg: to_binary(
                 &VestingMsg::AddUser {
-                    project_id: x.project_id,
+                    project_id: project_id,
                     wallet: info.sender,
                     stage: fundraising_stage,
                     amount: token_amount,
@@ -997,7 +1013,8 @@ pub fn try_openwhitelist(
     deps: DepsMut, 
     env: Env,
     info: MessageInfo,
-    project_id: Uint128
+    project_id: Uint128,
+    holder_alloc: Uint128
 ) 
     -> Result<Response, ContractError> 
 {
@@ -1044,6 +1061,17 @@ pub fn try_closewhitelist(
     if info.sender != x.creator_wallet {
         return Err(ContractError::Unauthorized{ });
     }
+    if x.project_status != ProjectStatus::Whitelist {
+        return Err(ContractError::NotCorrectStatus{status: x.project_status as u32});
+    }
+
+    let backamount;
+    if x.backerbacked_amount >= x.project_collected {
+        backamount = Uint128::zero()
+     } else { 
+         backamount = x.project_collected * Uint128::from(UST) - x.backerbacked_amount; 
+    }
+    
     let mut platium_count = 0;
     let mut gold_count = 0;
     let mut silver_count = 0;
@@ -1067,6 +1095,39 @@ pub fn try_closewhitelist(
         }
     }
 
+    x.holder_ticket = backamount * x.holder_alloc / Uint128::from(100u128) /
+        Uint128::from((platium_count*120 + gold_count*50 + silver_count*11 + bronze_count) as u128);
+
+    let community = COMMUNITY.load(deps.storage)?;
+    x.community_ticket = backamount * (Uint128::from(100u128) - x.holder_alloc) / Uint128::from(100u128) /
+        Uint128::from(community.len() as u128);
+
+    for i in 0..x.whitelist.len(){
+        let card_type = x.whitelist[i].card_type.clone();
+        match card_type{
+            CardType::Platium => {
+                x.whitelist[i].allocation = x.holder_ticket * Uint128::from(120u128);
+            }
+            CardType::Gold => {
+                x.whitelist[i].allocation = x.holder_ticket * Uint128::from(50u128);
+            }
+            CardType::Silver => {
+                x.whitelist[i].allocation = x.holder_ticket * Uint128::from(110u128);
+            }
+            CardType::Bronze => {
+                x.whitelist[i].allocation = x.holder_ticket;
+            }
+            other => {}
+        }
+    }
+    for one in community{
+        x.whitelist.push(WhitelistState{
+            wallet: one,
+            card_type: CardType::Other,
+            allocation: x.community_ticket.clone(),
+            backed: Uint128::zero()
+        })
+    }
     x.project_status = ProjectStatus::Fundraising;
 
     PROJECTSTATES.save(deps.storage, project_id.u128().into(), &x)?;

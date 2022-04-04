@@ -9,7 +9,7 @@ use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, BalanceResponse as Cw20BalanceResponse, TokenInfoResponse};
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, ProjectInfo, UserInfo, VestingParameter, Config};
+use Interface::vesting::{ExecuteMsg, InstantiateMsg, ProjectInfo, UserInfo, VestingParameter, Config};
 use crate::state::{PROJECT_INFOS, OWNER};
 
 // version info for migration info
@@ -221,6 +221,7 @@ pub fn try_adduser(deps: DepsMut, info: MessageInfo, project_id: Uint128, stage:
     }
 
     check_add_userinfo(&mut x.users[stage.u128() as usize], wallet, amount);
+    x.total[stage.u128() as usize] += amount;
     PROJECT_INFOS.save(deps.storage, project_id.u128().into(), &x)?;
 
     Ok(Response::new()
@@ -309,8 +310,10 @@ pub fn try_addproject(deps:DepsMut, info:MessageInfo,
     }
 
     let mut users = Vec::new();
+    let mut total = Vec::new();
     for _ in _vesting_params.clone(){
         users.push(Vec::new());
+        total.push(Uint128::zero())
     }
 
     let project_info: ProjectInfo = ProjectInfo{
@@ -318,6 +321,7 @@ pub fn try_addproject(deps:DepsMut, info:MessageInfo,
         config: config,
         vest_param: _vesting_params,
         users: users,
+        total: total
     };
 
     PROJECT_INFOS.save(deps.storage, project_id.u128().into(), &project_info)?;

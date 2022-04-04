@@ -1,9 +1,7 @@
+use cosmwasm_std::{Uint128, Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-use cosmwasm_std::{Addr, Uint128, Coin, StdResult, Storage};
-use cw_storage_plus::{Item, Map, U128Key};
-use Interface::staking::{CardType};
+use crate::staking::{CardType};
 
 //------------Config---------------------------------------
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -14,8 +12,6 @@ pub struct Config {
     pub aust_token: Addr,
     pub vesting_contract: Addr,
 }
-
-pub const CONFIG: Item<Config> = Item::new("config");
 
 //-------------backer states---------------------------------
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -127,29 +123,87 @@ pub struct ProjectState{
     pub token_addr: Addr,
 //---------whitelist-----------------------------
     pub whitelist: Vec<WhitelistState>,
-}
-pub const PROJECT_SEQ: Item<Uint128> = Item::new("prj_seq");
-pub const PROJECTSTATES: Map<U128Key, ProjectState> = Map::new("prj");
-
-pub fn save_projectstate(store: &mut dyn Storage, _prj: &mut ProjectState) 
-    -> StdResult<()> 
-{
-    // increment id if exists, or return 1
-    let id = PROJECT_SEQ.load(store)?;
-    let id = id.checked_add(Uint128::new(1))?;
-    PROJECT_SEQ.save(store, &id)?;
-
-    _prj.project_id = id.clone();
-    PROJECTSTATES.save(store, id.u128().into(), &_prj)
+    pub holder_alloc: Uint128,
+    pub holder_ticket: Uint128,
+    pub community_ticket: Uint128
 }
 
-//------------community array------------------------------------------------
-pub const COMMUNITY: Item<Vec<Addr>> = Item::new("community");
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct InstantiateMsg {
+    pub admin: Option<String>,
+    pub wefund: Option<String>,
+    pub anchor_market: Option<String>,
+    pub aust_token: Option<String>,
+    pub vesting_contract: Option<String>
+}
 
-//------------Profit------------------------------------------------------------
-pub const PROFIT: Item<Uint128> = Item::new("profit");
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecuteMsg {
+    SetConfig { admin:Option<String>,  wefund: Option<String>, 
+        anchor_market: Option<String>, aust_token:Option<String> , 
+        vesting_contract:Option<String>},
+    AddProject { 
+        project_id: Uint128,
+        project_company: String,
+        project_title: String,
+        project_description: String,
+        project_ecosystem: String,
+        project_createddate: String,
+        project_saft: String,
+        project_logo: String,
+        project_whitepaper: String,
+        project_website: String,
+        project_email: String,
+        creator_wallet: String,
+        project_collected: Uint128,
+        project_milestones: Vec<Milestone>,
+        project_teammembers: Vec<TeamMember>,
+        vesting: Vec<VestingParameter>,
+        token_addr: String,
 
-//------------FOR REPLY-----------------------------------------
-pub const PROJECT_ID: Item<Uint128> = Item::new("project id");
-pub const AUST_AMOUNT: Item<Uint128> = Item::new("aust amount");
-pub const UUSD_AMOUNT: Item<Uint128> = Item::new("ust amount");
+        country: String,
+        cofounder_name: String,
+        service_wefund: String,
+        service_charity: String,
+        professional_link: String
+    },
+    RemoveProject{project_id: Uint128 },
+
+    Back2Project { project_id: Uint128, backer_wallet: String, 
+        fundraising_stage: Uint128, token_amount: Uint128, 
+        otherchain:String, otherchain_wallet:String},
+
+    CompleteProject{ project_id: Uint128 },
+    FailProject{project_id: Uint128 },
+
+    TransferAllCoins{wallet: String},
+
+    AddCommunitymember{wallet: String},
+    RemoveCommunitymember{wallet: String},
+
+    WefundApprove{project_id:Uint128},
+    SetFundraisingStage{project_id: Uint128, stage: Uint128},
+    
+    SetMilestoneVote{project_id: Uint128, wallet:String, voted: bool},
+
+    ReleaseMilestone{project_id: Uint128},
+
+    SetProjectStatus{project_id: Uint128, status: Uint128},
+
+    OpenWhitelist{project_id: Uint128, holder_alloc: Uint128},
+    RegisterWhitelist{project_id: Uint128, card_type: CardType},
+    CloseWhitelist{project_id: Uint128}
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum QueryMsg {
+    GetConfig{},
+    GetAllProject{},
+    GetProject { project_id:Uint128 },
+    GetBacker{ project_id:Uint128},
+    GetBalance{ wallet:String },
+    GetCommunitymembers{},
+}
+

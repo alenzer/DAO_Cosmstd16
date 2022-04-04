@@ -1,7 +1,6 @@
 use cosmwasm_std::StdError;
 use thiserror::Error;
 use cosmwasm_std::{Uint128};
-use crate::state::{ProjectStatus};
 
 #[derive(Error, Debug)]
 pub enum ContractError {
@@ -59,6 +58,9 @@ pub enum ContractError {
 
     #[error("Invalid Reply id")]
     InvalidReplyId{ },
+
+    #[error("Not registered whitelist")]
+    NotRegisteredWhitelist{ },
 
     #[error("Not correct Milestone status : {aust_balance} {estimate_exchange_rate} {epoch_exchange_rate} {withdraw_amount} {release_amount}")]
     Testing{

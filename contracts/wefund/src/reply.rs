@@ -8,9 +8,12 @@ use cosmwasm_std::{
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, BalanceResponse as Cw20BalanceResponse, TokenInfoResponse};
 
 use crate::error::ContractError;
-use crate::state::{Config, CONFIG, PROJECTSTATES, ProjectState, BackerState, VestingParameter,
-    PROJECT_SEQ, COMMUNITY, Milestone, Vote, save_projectstate, TeamMember, ProjectStatus,
-    AUST_AMOUNT, UUSD_AMOUNT, PROJECT_ID, PROFIT};
+use Interface::wefund::{ExecuteMsg, InstantiateMsg, Config, ProjectState, BackerState,
+    VestingParameter,TeamMember, ProjectStatus, Milestone, Vote, WhitelistState
+};
+use crate::state::{CONFIG, PROJECTSTATES, PROJECT_SEQ, COMMUNITY,  save_projectstate, 
+        AUST_AMOUNT, UUSD_AMOUNT, PROJECT_ID, PROFIT};
+
 use crate::contract::{UST};
 
 #[cfg_attr(not(feature = "library"), entry_point)]

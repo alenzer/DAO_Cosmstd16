@@ -1,5 +1,5 @@
 [package]
-name = "Vesting"
+name = "vesting"
 version = "0.0.1"
 authors = ["Alenzer <alenzer@users.noreply.github.com>"]
 edition = "2018"
@@ -49,6 +49,7 @@ cosmwasm-storage = { version = "0.16.0", features = ["iterator"] }
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = "1.0.2"
+Interface = { path = "../../packages/Interface", default-features = false, version = "0.0.1"}
 [dev-dependencies]
 cosmwasm-schema = { version = "0.16.0" }
 # cosmwasm-schema = { version = "1.0.0-beta" }

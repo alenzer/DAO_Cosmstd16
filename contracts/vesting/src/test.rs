@@ -5,7 +5,7 @@ use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR, mock_depend
 
 use crate::contract::{execute, instantiate};
 use crate::query::{query};
-use crate::msg::{QueryMsg, ExecuteMsg, InstantiateMsg, VestingParameter, Config, UserInfo, ProjectInfo};
+use Interface::vesting::{QueryMsg, ExecuteMsg, InstantiateMsg, VestingParameter, Config, UserInfo, ProjectInfo};
 
 // use crate::mock_querier::mock_dependencies;
 use cw20::Cw20ExecuteMsg;

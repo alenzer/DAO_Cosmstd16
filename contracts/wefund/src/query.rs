@@ -7,8 +7,8 @@ use cosmwasm_std::{
 };
 use cw20::{Cw20QueryMsg, BalanceResponse as Cw20BalanceResponse};
 
-use crate::msg::{QueryMsg};
-use crate::state::{Config, CONFIG, PROJECTSTATES, ProjectState, BackerState, COMMUNITY};
+use Interface::wefund::{QueryMsg, Config, ProjectState, BackerState};
+use crate::state::{ CONFIG, PROJECTSTATES, COMMUNITY};
 
 // version info for migration info
 #[cfg_attr(not(feature = "library"), entry_point)]
