@@ -6,7 +6,7 @@ use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, BalanceResponse as Cw20BalanceResponse,
 use crate::state::{ OWNER, PLATIUM_CARD_NUMBER, GOLD_CARD_NUMBER, SILVER_CARD_NUMBER,
     BRONZE_CARD_NUMBER, CARD_INFOS, USER_INFOS, REWARD_TOKEN, START_TIME,
 };
-use crate::msg::{CardType, CardInfo};
+use Interface::staking::{ExecuteMsg, InstantiateMsg, UserInfo, CardInfo, CardType};
 
 pub fn check_onlyowner(storage: &dyn Storage, sender: Addr) -> Result<Response, ContractError> {
     let owner = OWNER.load(storage)?;

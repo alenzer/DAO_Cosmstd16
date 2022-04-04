@@ -9,9 +9,10 @@ use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, BalanceResponse as Cw20BalanceResponse, TokenInfoResponse};
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, UserInfo, CardInfo, CardType};
+use Interface::staking::{ExecuteMsg, InstantiateMsg, UserInfo, CardInfo, CardType};
 use crate::state::{USER_INFOS, CARD_INFOS, OWNER, REWARD_TOKEN, START_TIME, 
     PLATIUM_CARD_NUMBER, GOLD_CARD_NUMBER, SILVER_CARD_NUMBER, BRONZE_CARD_NUMBER};
+
 use crate::util::{check_onlyowner, get_cardtype, manage_card, get_reward,
         update_userinfo, get_token_balance};
 

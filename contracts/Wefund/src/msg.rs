@@ -2,7 +2,7 @@ use cosmwasm_std::{Uint128, Addr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use crate::state::{Milestone, TeamMember, VestingParameter};
-use Staking::msg::{CardType};
+use Interface::staking::{CardType};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {

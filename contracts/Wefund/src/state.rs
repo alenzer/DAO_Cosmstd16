@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Addr, Uint128, Coin, StdResult, Storage};
 use cw_storage_plus::{Item, Map, U128Key};
-use Staking::msg::{CardType};
+use Interface::staking::{CardType};
 
 //------------Config---------------------------------------
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

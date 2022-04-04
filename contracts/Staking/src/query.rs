@@ -8,7 +8,7 @@ use cosmwasm_std::{
 
 use cw20::{ Cw20QueryMsg, BalanceResponse as Cw20BalanceResponse, TokenInfoResponse };
 
-use crate::msg::{QueryMsg, UserInfo};
+use Interface::staking::{ExecuteMsg, InstantiateMsg, QueryMsg, UserInfo, CardInfo, CardType};
 use crate::state::{ OWNER, REWARD_TOKEN, USER_INFOS, CARD_INFOS, START_TIME};
 use crate::util::{ get_reward };
 

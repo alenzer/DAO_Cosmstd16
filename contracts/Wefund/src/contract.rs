@@ -15,10 +15,10 @@ use crate::state::{Config, CONFIG, PROJECTSTATES, ProjectState, BackerState, Ves
         PROJECT_SEQ, COMMUNITY, Milestone, Vote, save_projectstate, TeamMember, ProjectStatus,
         AUST_AMOUNT, UUSD_AMOUNT, PROJECT_ID, PROFIT, WhitelistState};
 
-use crate::market::{ExecuteMsg as AnchorMarket, Cw20HookMsg,
+use Interface::market::{ExecuteMsg as AnchorMarket, Cw20HookMsg,
     QueryMsg as AnchorQuery, EpochStateResponse};                    
 use Vesting::msg::{ExecuteMsg as VestingMsg, VestingParameter as VestingParam};
-use Staking::msg::{CardType};
+use Interface::staking::{CardType};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "WEFUND";
@@ -75,8 +75,6 @@ pub fn instantiate(
     PROJECT_ID.save(deps.storage, &Uint128::zero())?;
 
     PROFIT.save(deps.storage, &Uint128::zero())?;
-
-    whitelist.save(deps.storage, &Vec::new())?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate"))
@@ -178,6 +176,15 @@ pub fn execute(
 
         ExecuteMsg::SetProjectStatus{project_id, status} =>
             try_setprojectstatus(deps, info, project_id, status),
+
+        ExecuteMsg::OpenWhitelist{project_id} =>
+            try_openwhitelist(deps, _env, info, project_id),
+        
+        ExecuteMsg::RegisterWhitelist{project_id, card_type} =>
+            try_registerwhitelist(deps, _env, info, project_id, card_type),
+
+        ExecuteMsg::CloseWhitelist{project_id} =>
+            try_closewhitelist(deps, _env, info, project_id)
     }
 }
 pub fn try_setprojectstatus(deps: DepsMut, info: MessageInfo, project_id: Uint128, status: Uint128)
@@ -990,8 +997,7 @@ pub fn try_openwhitelist(
     deps: DepsMut, 
     env: Env,
     info: MessageInfo,
-    project_id: Uint128, 
-    card_type: CardType,
+    project_id: Uint128
 ) 
     -> Result<Response, ContractError> 
 {
@@ -1011,7 +1017,7 @@ pub fn try_registerwhitelist(
     env: Env,
     info: MessageInfo,
     project_id: Uint128, 
-    card_type: CardType,
+    card_type: CardType
 ) 
     -> Result<Response, ContractError> 
 {
@@ -1030,8 +1036,7 @@ pub fn try_closewhitelist(
     deps: DepsMut, 
     env: Env,
     info: MessageInfo,
-    project_id: Uint128, 
-    card_type: CardType,
+    project_id: Uint128
 ) 
     -> Result<Response, ContractError> 
 {
@@ -1039,7 +1044,29 @@ pub fn try_closewhitelist(
     if info.sender != x.creator_wallet {
         return Err(ContractError::Unauthorized{ });
     }
-    
+    let mut platium_count = 0;
+    let mut gold_count = 0;
+    let mut silver_count = 0;
+    let mut bronze_count = 0;
+
+    for one in x.whitelist.clone(){
+        match one.card_type{
+            CardType::Platium => {
+                platium_count += 1;
+            }
+            CardType::Gold => {
+                gold_count += 1;
+            }
+            CardType::Silver => {
+                silver_count += 1;
+            }
+            CardType::Bronze => {
+                bronze_count += 1;
+            }
+            other => {}
+        }
+    }
+
     x.project_status = ProjectStatus::Fundraising;
 
     PROJECTSTATES.save(deps.storage, project_id.u128().into(), &x)?;

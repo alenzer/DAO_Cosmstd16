@@ -1,5 +1,5 @@
 [package]
-name = "Vesting"
+name = "Interface"
 version = "0.0.1"
 authors = ["Alenzer <alenzer@users.noreply.github.com>"]
 edition = "2018"
@@ -51,6 +51,5 @@ serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = "1.0.2"
 [dev-dependencies]
 cosmwasm-schema = { version = "0.16.0" }
-# cosmwasm-schema = { version = "1.0.0-beta" }
-# terra-cosmwasm = "1.0.0-beta"
+# terra-cosmwasm = {version = "2.2.0"}
 # terraswap = "2.4.0"
