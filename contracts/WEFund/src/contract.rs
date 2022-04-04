@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     Addr, to_binary, DepsMut, Env, MessageInfo, Response, StdResult,
     Uint128, CosmosMsg, BankMsg, QueryRequest, BankQuery, WasmMsg,
-    Coin, AllBalanceResponse, SubMsg
+    Coin, BalanceResponse, SubMsg, AllBalanceResponse
 };
 use cw2::set_contract_version;
 use cw_storage_plus::{U128Key};
@@ -13,17 +13,17 @@ use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg};
 use crate::state::{Config, CONFIG, PROJECTSTATES, ProjectState, BackerState, VestingParameter,
         PROJECT_SEQ, COMMUNITY, Milestone, Vote, save_projectstate, TeamMember, ProjectStatus,
-        AUST_AMOUNT};
+        AUST_AMOUNT, UUSD_AMOUNT, PROJECT_ID, PROFIT, WhitelistState};
 
 use crate::market::{ExecuteMsg as AnchorMarket, Cw20HookMsg,
     QueryMsg as AnchorQuery, EpochStateResponse};                    
-
 use Vesting::msg::{ExecuteMsg as VestingMsg, VestingParameter as VestingParam};
+use Staking::msg::{CardType};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "WEFUND";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-const UST: u128 = 1000000; //ust unit
+pub const UST: u128 = 1_000_000; //ust unit
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -69,7 +69,15 @@ pub fn instantiate(
     CONFIG.save(deps.storage, &config)?;
     PROJECT_SEQ.save(deps.storage, &Uint128::zero())?;
     COMMUNITY.save(deps.storage, &Vec::new())?;
+
     AUST_AMOUNT.save(deps.storage, &Uint128::zero())?;
+    UUSD_AMOUNT.save(deps.storage, &Uint128::zero())?;
+    PROJECT_ID.save(deps.storage, &Uint128::zero())?;
+
+    PROFIT.save(deps.storage, &Uint128::zero())?;
+
+    whitelist.save(deps.storage, &Vec::new())?;
+
     Ok(Response::new()
         .add_attribute("method", "instantiate"))
 }
@@ -239,85 +247,40 @@ pub fn try_releasemilestone(deps: DepsMut, _env: Env, _project_id: Uint128 )
     let release_amount = 
         x.milestone_states[step].milestone_amount.u128() * UST;
 
-    //---------calc total deposited to anchor----------------
-    //----------map to vec-----------------------
-    let all: StdResult<Vec<_>> = PROJECTSTATES.range(deps.storage, None, None, 
-        cosmwasm_std::Order::Ascending).collect();
-    let all = all.unwrap();
+    //---------calc total deposited to project----------------
+    let total_deposited = x.backerbacked_amount.u128();
+    let withdraw_amount = release_amount * x.aust_amount.u128() / total_deposited;
 
-    let mut total_deposited = 0;
-    for x in all{
-        let prj = x.1;
-        total_deposited += prj.communitybacked_amount.u128() + prj.backerbacked_amount.u128();
-
-        for i in 0..(prj.project_milestonestep.u128() as usize){
-            total_deposited -= prj.milestone_states[i].milestone_amount.u128() * UST;
-        }
-    }
     //----------load config and read aust token address-----------------
     let config = CONFIG.load(deps.storage).unwrap();
-    
-    //--------get aust balance---------------------
-    let aust_balance: Cw20BalanceResponse = deps.querier.query_wasm_smart(
-        config.aust_token.clone(),
-        &Cw20QueryMsg::Balance{
-            address: _env.contract.address.to_string(),
-        }
-    )?;
-
-    //----------calc declaim aust amount---aust*(release/total)-----------
-    let mut estimate_exchange_rate = total_deposited * UST/aust_balance.balance.u128();
-
-    //--------get exchange rate between ust and aust ---------------------
-    let epoch: EpochStateResponse = deps.querier.query_wasm_smart(
-        config.anchor_market.to_string(),
-        &AnchorQuery::EpochState{
-            block_height: None,
-            distributed_interest: None,
-        }
-    )?;
-    let epoch_exchange_rate = convert_str_int(epoch.exchange_rate.to_string());
-
-    if estimate_exchange_rate < epoch_exchange_rate{
-        estimate_exchange_rate = epoch_exchange_rate;
-    }
-
-    let withdraw_amount = release_amount * UST / estimate_exchange_rate;
-    let release_amount = withdraw_amount * epoch_exchange_rate / UST;
-
     //----ask aust_token for transfer to anchor martket and execute redeem_stable ----------
-    let withdraw = WasmMsg::Execute {
-        contract_addr: String::from(config.aust_token),
-        msg: to_binary(&Cw20ExecuteMsg::Send {
-            contract: config.anchor_market.to_string(),
-            msg: to_binary(&Cw20HookMsg::RedeemStable{}).unwrap(), //redeem_stable{}
-            amount: Uint128::new(withdraw_amount)
-        }).unwrap(),
-        funds: Vec::new()
-    };
+    let withdraw = SubMsg::reply_on_success(
+        CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: String::from(config.aust_token),
+            msg: to_binary(&Cw20ExecuteMsg::Send {
+                contract: config.anchor_market.to_string(),
+                msg: to_binary(&Cw20HookMsg::RedeemStable{}).unwrap(), //redeem_stable{}
+                amount: Uint128::new(withdraw_amount)
+            }).unwrap(),
+            funds: Vec::new()
+        }),
+        2
+    );
 
-    // return Err(ContractError::Testing{
-    //     aust_balance: aust_balance.balance.to_string(),
-    //     estimate_exchange_rate: estimate_exchange_rate.to_string(),
-    //     epoch_exchange_rate: epoch_exchange_rate.to_string(),
-    //     withdraw_amount: withdraw_amount.to_string(),
-    //     release_amount: release_amount.to_string()
-    // });
-
-    //---------send to creator wallet-------------
-    let ust_release = Coin::new(release_amount, "uusd");
-    let send2_creator = BankMsg::Send { 
-        to_address: x.creator_wallet.to_string(),
-        amount: vec![ust_release] 
-    };
+    let balance: BalanceResponse = deps.querier.query(
+        &QueryRequest::Bank(BankQuery::Balance{
+            address: _env.contract.address.to_string(),
+            denom: "uusd".to_string()
+        }
+    ))?;
+    AUST_AMOUNT.save(deps.storage, &Uint128::from(withdraw_amount))?;
+    UUSD_AMOUNT.save(deps.storage, &balance.amount.amount)?;
+    PROJECT_ID.save(deps.storage, &_project_id)?;
 
     Ok(Response::new()
-    .add_messages(vec![
-        CosmosMsg::Wasm(withdraw),
-        CosmosMsg::Bank(send2_creator)])
+    .add_submessage(withdraw)
     .add_attribute("action", "release milestone")
-    .add_attribute("epoch_exchange_rate", epoch.exchange_rate.to_string())
-    .add_attribute("estimate_exchange_rate", estimate_exchange_rate.to_string())
+    .add_attribute("withdraw aust amount", withdraw_amount.to_string())
     .add_attribute("total_deposited", total_deposited.to_string())
     )
 }
@@ -612,83 +575,38 @@ pub fn try_completeproject(
         return Err(ContractError::NotCorrectStatus{status: x.project_status as u32});
     }
 
-    //---------calc hope to release amount---------------------------
-    let mut release_amount: u128 = x.communitybacked_amount.u128() + x.backerbacked_amount.u128();
-    
-    for i in 0..(x.project_milestonestep.u128() as usize){
-        release_amount -= x.milestone_states[i].milestone_amount.u128() * UST;
-    }
+    let withdraw_amount = x.aust_amount.u128();
 
-    //---------calc total deposited to anchor----------------
-    //----------map to vec-----------------------
-    let all: StdResult<Vec<_>> = PROJECTSTATES.range(deps.storage, None, None, 
-        cosmwasm_std::Order::Ascending).collect();
-    let all = all.unwrap();
-
-    let mut total_deposited = 0;
-    for x in all{
-        let prj = x.1;
-        total_deposited += prj.communitybacked_amount.u128() + prj.backerbacked_amount.u128();
-
-        for i in 0..(prj.project_milestonestep.u128() as usize){
-            total_deposited -= prj.milestone_states[i].milestone_amount.u128() * UST;
-        }
-    }
     //----------load config and read aust token address-----------------
     let config = CONFIG.load(deps.storage).unwrap();
-    
-    //--------get aust balance---------------------
-    let aust_balance: Cw20BalanceResponse = deps.querier.query_wasm_smart(
-        config.aust_token.clone(),
-        &Cw20QueryMsg::Balance{
-            address: _env.contract.address.to_string(),
-        }
-    )?;
-
-    //----------calc declaim aust amount---aust*(release/total)-----------
-    let mut estimate_exchange_rate = total_deposited * UST/aust_balance.balance.u128();
-
-    //--------get exchange rate between ust and aust ---------------------
-    let epoch: EpochStateResponse = deps.querier.query_wasm_smart(
-        config.anchor_market.to_string(),
-        &AnchorQuery::EpochState{
-            block_height: None,
-            distributed_interest: None,
-        }
-    )?;
-    let epoch_exchange_rate = convert_str_int(epoch.exchange_rate.to_string());
-    
-    if estimate_exchange_rate < epoch_exchange_rate{
-        estimate_exchange_rate = epoch_exchange_rate;
-    }
-
-    let withdraw_amount = release_amount * UST / estimate_exchange_rate;
-    let release_amount = withdraw_amount * epoch_exchange_rate / UST;
 
     //----ask aust_token for transfer to anchor martket and execute redeem_stable ----------
-    let withdraw = WasmMsg::Execute {
-        contract_addr: String::from(config.aust_token),
-        msg: to_binary(&Cw20ExecuteMsg::Send {
-            contract: config.anchor_market.to_string(),
-            msg: to_binary(&Cw20HookMsg::RedeemStable{}).unwrap(), //redeem_stable{}
-            amount: Uint128::new(withdraw_amount)
-        }).unwrap(),
-        funds: Vec::new()
-    };
+    let withdraw = SubMsg::reply_on_success(
+        CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: String::from(config.aust_token),
+            msg: to_binary(&Cw20ExecuteMsg::Send {
+                contract: config.anchor_market.to_string(),
+                msg: to_binary(&Cw20HookMsg::RedeemStable{}).unwrap(), //redeem_stable{}
+                amount: Uint128::new(withdraw_amount)
+            }).unwrap(),
+            funds: Vec::new()
+        }),
+        3
+    );
 
-    //---------send to creator wallet-------------
-    let ust_release = Coin::new(release_amount, "uusd");
-    let send2_creator = BankMsg::Send { 
-        to_address: x.creator_wallet.to_string(),
-        amount: vec![ust_release] 
-    };
+    let balance: BalanceResponse = deps.querier.query(
+        &QueryRequest::Bank(BankQuery::Balance{
+            address: _env.contract.address.to_string(),
+            denom: "uusd".to_string()
+        }
+    ))?;
+    UUSD_AMOUNT.save(deps.storage, &balance.amount.amount)?;
+    PROJECT_ID.save(deps.storage, &_project_id)?;
 
     Ok(Response::new()
-    .add_messages(vec![
-        CosmosMsg::Wasm(withdraw),
-        CosmosMsg::Bank(send2_creator)])
-    .add_attribute("action", "complete project")
-    .add_attribute("epoch_exchange_rate", epoch.exchange_rate.to_string())
+    .add_submessage(withdraw)
+    .add_attribute("action", "complete milestone")
+    .add_attribute("withdraw aust amount", withdraw_amount.to_string())
     )
 }
 pub fn try_failproject(
@@ -705,101 +623,38 @@ pub fn try_failproject(
         return Err(ContractError::NotCorrectStatus{status: x.project_status as u32});
     }
 
-    //---------calc hope to release amount---------------------------
-    let mut release_amount: u128 = x.communitybacked_amount.u128() + x.backerbacked_amount.u128();
-    
-    for i in 0..(x.project_milestonestep.u128() as usize){
-        release_amount -= x.milestone_states[i].milestone_amount.u128() * UST;
-    }
+    let withdraw_amount = x.aust_amount.u128();
 
-    //---------calc total deposited to anchor----------------
-    //----------map to vec-----------------------
-    let all: StdResult<Vec<_>> = PROJECTSTATES.range(deps.storage, None, None, 
-        cosmwasm_std::Order::Ascending).collect();
-    let all = all.unwrap();
-
-    let mut total_deposited = 0;
-    for x in all{
-        let prj = x.1;
-        total_deposited += prj.communitybacked_amount.u128() + prj.backerbacked_amount.u128();
-
-        for i in 0..(prj.project_milestonestep.u128() as usize){
-            total_deposited -= prj.milestone_states[i].milestone_amount.u128() * UST;
-        }
-    }
     //----------load config and read aust token address-----------------
     let config = CONFIG.load(deps.storage).unwrap();
-    
-    //--------get aust balance---------------------
-    let aust_balance: Cw20BalanceResponse = deps.querier.query_wasm_smart(
-        config.aust_token.clone(),
-        &Cw20QueryMsg::Balance{
-            address: _env.contract.address.to_string(),
-        }
-    )?;
-
-    //----------calc declaim aust amount---aust*(release/total)-----------
-    let mut estimate_exchange_rate = total_deposited * UST/aust_balance.balance.u128();
-
-    //--------get exchange rate between ust and aust ---------------------
-    let epoch: EpochStateResponse = deps.querier.query_wasm_smart(
-        config.anchor_market.to_string(),
-        &AnchorQuery::EpochState{
-            block_height: None,
-            distributed_interest: None,
-        }
-    )?;
-    let epoch_exchange_rate = convert_str_int(epoch.exchange_rate.to_string());
-    
-    if estimate_exchange_rate < epoch_exchange_rate{
-        estimate_exchange_rate = epoch_exchange_rate;
-    }
-
-    let withdraw_amount = release_amount * UST / estimate_exchange_rate;
-    let release_amount = withdraw_amount * epoch_exchange_rate / UST;
-
-    let mut msg= Vec::new();
 
     //----ask aust_token for transfer to anchor martket and execute redeem_stable ----------
-    let withdraw = WasmMsg::Execute {
-        contract_addr: String::from(config.aust_token),
-        msg: to_binary(&Cw20ExecuteMsg::Send {
-            contract: config.anchor_market.to_string(),
-            msg: to_binary(&Cw20HookMsg::RedeemStable{}).unwrap(), //redeem_stable{}
-            amount: Uint128::new(withdraw_amount)
-        }).unwrap(),
-        funds: Vec::new()
-    };
+    let withdraw = SubMsg::reply_on_success(
+        CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: String::from(config.aust_token),
+            msg: to_binary(&Cw20ExecuteMsg::Send {
+                contract: config.anchor_market.to_string(),
+                msg: to_binary(&Cw20HookMsg::RedeemStable{}).unwrap(), //redeem_stable{}
+                amount: Uint128::new(withdraw_amount)
+            }).unwrap(),
+            funds: Vec::new()
+        }),
+        4
+    );
 
-    msg.push(CosmosMsg::Wasm(withdraw));
-
-    //---------send to backer wallet-------------
-    for backer in x.backer_states{
-        let mut backed_ust = backer.ust_amount.clone(); 
-
-        //---while mistone releasing, suddenly failed, distribute with %
-        backed_ust.amount = Uint128::new(backer.ust_amount.amount.u128() * release_amount
-            /(x.communitybacked_amount.u128() + x.backerbacked_amount.u128()));
-
-        let send2_backer = BankMsg::Send { 
-            to_address: backer.backer_wallet.to_string(),
-            amount: vec![backed_ust] 
-        };
-        msg.push(CosmosMsg::Bank(send2_backer));
-    }
-    
-    //-----update project state to FAIL----------------------------
-    PROJECTSTATES.update(deps.storage, _project_id.u128().into(), |op| match op {
-        None => Err(ContractError::NotRegisteredProject {}),
-        Some(mut project) => {
-            project.project_status = ProjectStatus::Fail; //fail
-            Ok(project)
+    let balance: BalanceResponse = deps.querier.query(
+        &QueryRequest::Bank(BankQuery::Balance{
+            address: _env.contract.address.to_string(),
+            denom: "uusd".to_string()
         }
-    })?;
+    ))?;
+    UUSD_AMOUNT.save(deps.storage, &balance.amount.amount)?;
+    PROJECT_ID.save(deps.storage, &_project_id)?;
 
     Ok(Response::new()
-    .add_messages(msg)
-    .add_attribute("action", "project failed")
+    .add_submessage(withdraw)
+    .add_attribute("action", "failed milestone")
+    .add_attribute("withdraw aust amount", withdraw_amount.to_string())
     )
 }
 
@@ -852,12 +707,13 @@ pub fn try_addproject(
         fundraising_stage: Uint128::zero(),
 
         backerbacked_amount: Uint128::zero(),
-        communitybacked_amount: Uint128::zero(),
+        aust_amount: Uint128::zero(),
 
         backer_states: Vec::new(),
-        communitybacker_states: Vec::new(),
 
         project_milestonestep: Uint128::zero(), //first milestonestep
+
+        whitelist: Vec::new(),
 //-------------------------------------------
         creator_wallet: deps.api.addr_validate(&_creator_wallet).unwrap(),
         project_collected: _project_collected,
@@ -882,11 +738,10 @@ pub fn try_addproject(
         new_project.project_status = x.project_status;
         new_project.fundraising_stage = x.fundraising_stage;
         new_project.backerbacked_amount = x.backerbacked_amount;
-        new_project.communitybacked_amount = x.communitybacked_amount;
+        new_project.aust_amount = x.aust_amount;
         new_project.backer_states = x.backer_states;
-        new_project.communitybacker_states = x.communitybacker_states;
         new_project.project_milestonestep = x.project_milestonestep;
-
+        new_project.whitelist = x.whitelist;
         PROJECTSTATES.save(deps.storage, _project_id.u128().into(), &new_project)?;
     }
 
@@ -951,7 +806,7 @@ pub fn try_back2project(
     }
 
     //--------check sufficient back--------------------
-    let fee:u128 = 4 * UST;
+    let fee: u128 = 4 * UST;
     if info.funds.is_empty() || info.funds[0].amount.u128() < 6 * UST{
         return Err(ContractError::NeedCoin{});
     }
@@ -970,22 +825,14 @@ pub fn try_back2project(
 
     let backer_wallet = deps.api.addr_validate(&backer_wallet)?;
 
-    //--------check community and calc backed amount----------------
-    let community = COMMUNITY.load(deps.storage)?;
-    let is_community = community.iter().find(|&x| x == &backer_wallet);
-    let collected = Uint128::new(x.project_collected.u128() / 2 * UST);
+    //--------check backed amount----------------
+    let collected = x.project_collected;
 
-    if is_community != None { //community backer
-        if x.communitybacked_amount >= collected{
-            return Err(ContractError::AlreadyCollected{});
-        }
-        x.communitybacked_amount += fund_real_back.amount;
-    } else { //only backer
-        if x.backerbacked_amount >= collected{
-            return Err(ContractError::AlreadyCollected{});
-        }
-        x.backerbacked_amount += fund_real_back.amount;
-    }
+    // if x.backerbacked_amount >= collected{
+    //     return Err(ContractError::AlreadyCollected{});
+    // }
+    x.backerbacked_amount += fund_real_back.amount;
+    
     //------push to new backer------------------
     let new_baker:BackerState = BackerState{
         backer_wallet: backer_wallet,
@@ -994,19 +841,12 @@ pub fn try_back2project(
         ust_amount: fund_real_back.clone(),
         aust_amount: Coin::new(0, "aust")
     };
-    if is_community != None {//community backer
-        x.communitybacker_states.push(new_baker);
-    } else {
-        x.backer_states.push(new_baker);
-    }
+
+    x.backer_states.push(new_baker);
 
     //------check needback-----------------
-    let mut communitybacker_needback = true;
     let mut backer_needback = true;
 
-    if x.communitybacked_amount  >= collected{
-        communitybacker_needback = false;
-    }
     if x.backerbacked_amount  >= collected{
         backer_needback = false;
     }
@@ -1014,7 +854,7 @@ pub fn try_back2project(
     let mut msgs: Vec<CosmosMsg> = vec![];
 
     //---------check collection and switch to releasing status---------
-    if communitybacker_needback == false && backer_needback == false{
+    if backer_needback == false{
         x.project_status = ProjectStatus::Releasing; //releasing
 
         //------add milestone votes in every milestone---------------
@@ -1080,10 +920,8 @@ pub fn try_back2project(
         None => Err(ContractError::NotRegisteredProject {}),
         Some(mut project) => {
             project.project_status = x.project_status.clone();
-            project.communitybacked_amount = x.communitybacked_amount;
             project.backerbacked_amount = x.backerbacked_amount;
             project.backer_states = x.backer_states;
-            project.communitybacker_states = x.communitybacker_states;
             
             if x.project_status == ProjectStatus::Releasing{//only on switching releasing status
                 project.milestone_states = x.milestone_states;
@@ -1131,9 +969,79 @@ pub fn try_back2project(
         msgs.push(CosmosMsg::Wasm(add_fundraising_user));
     }
 
+    let aust_balance: Cw20BalanceResponse = deps.querier.query_wasm_smart(
+        config.aust_token,
+        &Cw20QueryMsg::Balance{
+            address: env.contract.address.to_string(),
+        }
+    )?;
+
+    AUST_AMOUNT.save(deps.storage, &aust_balance.balance)?;
+    PROJECT_ID.save(deps.storage, &project_id)?;
+
     Ok(Response::new()
     .add_submessage(deposit_msg)
     .add_messages(msgs)
     .add_attribute("action", "back to project")
     )
+}
+
+pub fn try_openwhitelist(
+    deps: DepsMut, 
+    env: Env,
+    info: MessageInfo,
+    project_id: Uint128, 
+    card_type: CardType,
+) 
+    -> Result<Response, ContractError> 
+{
+    let mut x = PROJECTSTATES.load(deps.storage, project_id.u128().into())?;
+    if info.sender != x.creator_wallet {
+        return Err(ContractError::Unauthorized{ });
+    }
+
+    x.project_status = ProjectStatus::Whitelist;
+    x.whitelist = Vec::new();
+    PROJECTSTATES.save(deps.storage, project_id.u128().into(), &x)?;
+    Ok(Response::new())
+}
+
+pub fn try_registerwhitelist(
+    deps: DepsMut, 
+    env: Env,
+    info: MessageInfo,
+    project_id: Uint128, 
+    card_type: CardType,
+) 
+    -> Result<Response, ContractError> 
+{
+    let mut x = PROJECTSTATES.load(deps.storage, project_id.u128().into())?;
+    x.whitelist.push( WhitelistState{
+        wallet: info.sender,
+        card_type: card_type,
+        allocation: Uint128::zero(),
+        backed: Uint128::zero(),
+    });
+    PROJECTSTATES.save(deps.storage, project_id.u128().into(), &x)?;
+    Ok(Response::new())
+}
+
+pub fn try_closewhitelist(
+    deps: DepsMut, 
+    env: Env,
+    info: MessageInfo,
+    project_id: Uint128, 
+    card_type: CardType,
+) 
+    -> Result<Response, ContractError> 
+{
+    let mut x = PROJECTSTATES.load(deps.storage, project_id.u128().into())?;
+    if info.sender != x.creator_wallet {
+        return Err(ContractError::Unauthorized{ });
+    }
+    
+    x.project_status = ProjectStatus::Fundraising;
+
+    PROJECTSTATES.save(deps.storage, project_id.u128().into(), &x)?;
+    Ok(Response::new())
 }

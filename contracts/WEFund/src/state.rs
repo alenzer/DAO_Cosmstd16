@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Addr, Uint128, Coin, StdResult, Storage};
 use cw_storage_plus::{Item, Map, U128Key};
+use Staking::msg::{CardType};
+
 //------------Config---------------------------------------
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
@@ -64,8 +66,17 @@ pub struct VestingParameter{
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct WhitelistState{
+    pub wallet: Addr,
+    pub card_type: CardType,
+    pub allocation: Uint128,
+    pub backed: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub enum ProjectStatus{
     WefundVote,
+    Whitelist,
     Fundraising,
     Releasing,
     Done,
@@ -101,12 +112,9 @@ pub struct ProjectState{
     pub fundraising_stage: Uint128, 
 
     pub backerbacked_amount: Uint128,
-    pub communitybacked_amount: Uint128,
+    pub aust_amount: Uint128,
 //---------backer states for 50% of collected------------------------    
     pub backer_states: Vec<BackerState>,
-
-//---------community backer states for 50% of collected---------------
-    pub communitybacker_states: Vec<BackerState>,
 
 //----------milestone states-----------------------------------------
     pub milestone_states: Vec<Milestone>,
@@ -117,6 +125,8 @@ pub struct ProjectState{
     pub vesting: Vec<VestingParameter>,
 
     pub token_addr: Addr,
+//---------whitelist-----------------------------
+    pub whitelist: Vec<WhitelistState>,
 }
 pub const PROJECT_SEQ: Item<Uint128> = Item::new("prj_seq");
 pub const PROJECTSTATES: Map<U128Key, ProjectState> = Map::new("prj");
@@ -135,4 +145,11 @@ pub fn save_projectstate(store: &mut dyn Storage, _prj: &mut ProjectState)
 
 //------------community array------------------------------------------------
 pub const COMMUNITY: Item<Vec<Addr>> = Item::new("community");
+
+//------------Profit------------------------------------------------------------
+pub const PROFIT: Item<Uint128> = Item::new("profit");
+
+//------------FOR REPLY-----------------------------------------
+pub const PROJECT_ID: Item<Uint128> = Item::new("project id");
 pub const AUST_AMOUNT: Item<Uint128> = Item::new("aust amount");
+pub const UUSD_AMOUNT: Item<Uint128> = Item::new("ust amount");

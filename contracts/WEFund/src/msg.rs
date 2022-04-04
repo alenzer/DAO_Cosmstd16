@@ -1,7 +1,8 @@
-use cosmwasm_std::{Uint128};
+use cosmwasm_std::{Uint128, Addr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use crate::state::{Milestone, TeamMember, VestingParameter};
+use Staking::msg::{CardType};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -64,7 +65,11 @@ pub enum ExecuteMsg {
 
     ReleaseMilestone{project_id: Uint128},
 
-    SetProjectStatus{project_id: Uint128, status: Uint128}
+    SetProjectStatus{project_id: Uint128, status: Uint128},
+
+    OpenWhitelist{project_id: Uint128},
+    RegisterWhitelist{project_id: Uint128, card_type: CardType},
+    CloseWhitelist{project_id: Uint128}
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

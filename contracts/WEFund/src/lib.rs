@@ -5,11 +5,6 @@ pub mod msg;
 pub mod state;
 pub mod market;
 pub mod reply;
+pub mod util;
 
 pub use crate::error::ContractError;
-
-#[cfg(test)]
-mod testing;
-
-#[cfg(test)]
-mod mock_querier;
