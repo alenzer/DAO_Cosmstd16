@@ -4,5 +4,8 @@ mod error;
 pub mod state;
 pub mod reply;
 
+#[cfg(test)]
+mod test;
 
-pub use crate::error::ContractError;
+#[cfg(test)]
+mod mock_querier;

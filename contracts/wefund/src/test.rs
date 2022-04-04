@@ -1,17 +1,13 @@
 use super::*;
-use cosmwasm_std::{from_binary, Addr, CosmosMsg, WasmMsg,
-    BankQuery, BalanceResponse, AllBalanceResponse, Coin, Uint128};
+use cosmwasm_std::{from_binary, Coin, Uint128};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 
 use crate::contract::{execute, instantiate};
 use crate::query::{query};
-use crate::state::{Milestone, Config, ProjectState};
-use crate::msg::{QueryMsg, ExecuteMsg, InstantiateMsg};
+use Interface::wefund::{QueryMsg, ExecuteMsg, InstantiateMsg, Milestone, Config, ProjectState};
+use Interface::staking::{CardType};
 
 use crate::mock_querier::mock_dependencies;
-use cw20::Cw20ExecuteMsg;
-// use terraswap::asset::{Asset, AssetInfo};
-// use terraswap::pair::ExecuteMsg as TerraswapExecuteMsg;
 
 #[test]
 fn workflow(){
@@ -111,7 +107,7 @@ fn workflow(){
 
     let msg = ExecuteMsg::AddProject{
         project_id: Uint128::from(1u128),
-        creator_wallet: String::from("creator_wallet"),
+        creator_wallet: String::from("creator1"),
         project_description: String::from("demo1"),
         project_collected: Uint128::new(300),
         project_email: String::from("deme1@gmail.com"),
@@ -153,8 +149,34 @@ fn workflow(){
     // let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
     // println!("WeFund Approve: {:?}", res);
 
-// // back 2 projct
-    let info = mock_info("backer1", &[Coin::new(105000000, "uusd")]);
+//  Open whitelist
+    let info = mock_info("creator1", &[]);
+    let msg = ExecuteMsg::OpenWhitelist{
+        project_id: Uint128::new(1),
+        holder_alloc: Uint128::from(80u128)
+    };
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+    println!("OpenWhitelist:{:?}", res);
+
+//  register whitelist
+    let info = mock_info("backer1", &[]);
+    let msg = ExecuteMsg::RegisterWhitelist{
+        project_id: Uint128::new(1),
+        card_type: CardType::Platium
+    };
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+    println!("RegisterWhitelist:{:?}", res);
+
+//  close whitelist
+    let info = mock_info("creator1", &[]);
+    let msg = ExecuteMsg::CloseWhitelist{
+        project_id: Uint128::new(1),
+    };
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+    println!("Close Whitelist:{:?}", res);
+
+// back 2 projct
+    let info = mock_info("backer1", &[Coin::new(100000000, "uusd")]);
     let msg = ExecuteMsg::Back2Project{
         project_id: Uint128::new(1),
         backer_wallet: String::from("backer1"),
@@ -166,10 +188,10 @@ fn workflow(){
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
     println!("back2project:{:?}", res);
 
-    let info = mock_info("backer2", &[Coin::new(210000000, "uusd")]);
+    let info = mock_info("community1", &[Coin::new(200000000, "uusd")]);
     let msg = ExecuteMsg::Back2Project{
         project_id: Uint128::new(1),
-        backer_wallet: String::from("backer2"),
+        backer_wallet: String::from("community1"),
         otherchain: "ethereum".to_string(),
         otherchain_wallet: "ether_wallet".to_string(),
         fundraising_stage: Uint128::zero(),
@@ -177,14 +199,8 @@ fn workflow(){
     };
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
     println!("back2project:{:?}", res);
-//-Get Project-----------------
-// let msg = QueryMsg::GetAllProject{};
-// let allproject = query(deps.as_ref(), mock_env(), msg).unwrap();
-
-// let res:Vec<ProjectState> = from_binary(&allproject).unwrap();
-// println!("allproject {:?}", res );
-
-    let info = mock_info("community1", &[Coin::new(210000000, "uusd")]);
+ 
+    let info = mock_info("community1", &[Coin::new(200000000, "uusd")]);
     let msg = ExecuteMsg::Back2Project{
         project_id: Uint128::new(1),
         backer_wallet: String::from("community1"),
@@ -195,12 +211,7 @@ fn workflow(){
     };
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
     println!("back2project:{:?}", res);
-// //-Get Project-----------------
-// let msg = QueryMsg::GetAllProject{};
-// let allproject = query(deps.as_ref(), mock_env(), msg).unwrap();
-
-// let res:Vec<ProjectState> = from_binary(&allproject).unwrap();
-// println!("allproject {:?}", res );    
+  
 // //set milestone vote
         let info = mock_info("backer1", &[]);
         let msg = ExecuteMsg::SetMilestoneVote{
@@ -228,7 +239,12 @@ fn workflow(){
         };
         let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
         println!("set milestone vote:{:?}", res);
+// //-Get Project-----------------
+let msg = QueryMsg::GetAllProject{};
+let allproject = query(deps.as_ref(), mock_env(), msg).unwrap();
 
+let res:Vec<ProjectState> = from_binary(&allproject).unwrap();
+println!("allproject {:?}", res );  
         let info = mock_info("backer2", &[]);
         let msg = ExecuteMsg::SetMilestoneVote{
             project_id: Uint128::new(1),

@@ -14,7 +14,7 @@ use terra_cosmwasm::{TaxCapResponse, TaxRateResponse, TerraQuery, TerraQueryWrap
 use terraswap::asset::{AssetInfo, PairInfo};
 
 use cosmwasm_bignumber::{Decimal256, Uint256};
-use crate::market::{ExecuteMsg as AnchorMarket, Cw20HookMsg,
+use Interface::market::{ExecuteMsg as AnchorMarket, Cw20HookMsg,
     QueryMsg as AnchorQuery, EpochStateResponse};   
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.

@@ -401,7 +401,7 @@ pub fn try_wefundapprove(deps: DepsMut, info:MessageInfo, project_id: Uint128)
     if x.project_status != ProjectStatus::WefundVote { //only wefund approve status
         return Err(ContractError::NotCorrectStatus{status:x.project_status as u32});
     }
-    x.project_status = ProjectStatus::Fundraising; //switch to fundraising status
+    x.project_status = ProjectStatus::Whitelist; //switch to fundraising status
 
     PROJECTSTATES.update(deps.storage, project_id.u128().into(), |op| match op {
         None => Err(ContractError::NotRegisteredProject {}),
@@ -834,8 +834,8 @@ pub fn try_back2project(
     let mut fund_wefund = fund.clone();
     //--------calc amount to desposit and to wefund
     if fund.amount.u128() >= 100 * UST{
-        fund_real_back.amount = Uint128::new(fund.amount.u128() * 100 / 105);
-        fund_wefund.amount = Uint128::new((fund.amount.u128() * 5 / 105) - fee);
+        fund_real_back.amount = Uint128::new(fund.amount.u128() * 95 / 100);
+        fund_wefund.amount = Uint128::new((fund.amount.u128() * 5 / 100) - fee);
     } else {
         fund_real_back.amount = Uint128::new(fund.amount.u128() - 5 * UST);
         fund_wefund.amount = Uint128::new(1 * UST);
@@ -844,7 +844,7 @@ pub fn try_back2project(
     let backer_wallet = deps.api.addr_validate(&backer_wallet)?;
 
     //--------check backed amount----------------
-    let collected = x.project_collected;
+    let collected = x.project_collected * Uint128::from(UST);
 
     // if x.backerbacked_amount >= collected{
     //     return Err(ContractError::AlreadyCollected{});
@@ -882,11 +882,15 @@ pub fn try_back2project(
         x.project_status = ProjectStatus::Releasing; //releasing
 
         //------add milestone votes in every milestone---------------
+        let community = COMMUNITY.load(deps.storage)?;
         let mut milestone_votes = Vec::new();
         for backer in x.backer_states.clone(){
-            milestone_votes.push(
-                Vote{ wallet: backer.backer_wallet, voted: false }
-            );
+            let index = community.iter().position(|x| x == &backer.backer_wallet);
+            if index == None{
+                milestone_votes.push(
+                    Vote{ wallet: backer.backer_wallet, voted: false }
+                );
+            }
         }
         //-----add wefund vote------------------
         let config = CONFIG.load(deps.storage)?;
@@ -946,7 +950,8 @@ pub fn try_back2project(
             project.project_status = x.project_status.clone();
             project.backerbacked_amount = x.backerbacked_amount;
             project.backer_states = x.backer_states;
-            
+            project.whitelist = x.whitelist;
+
             if x.project_status == ProjectStatus::Releasing{//only on switching releasing status
                 project.milestone_states = x.milestone_states;
             }
@@ -1022,9 +1027,9 @@ pub fn try_openwhitelist(
     if info.sender != x.creator_wallet {
         return Err(ContractError::Unauthorized{ });
     }
-
     x.project_status = ProjectStatus::Whitelist;
     x.whitelist = Vec::new();
+    x.holder_alloc = holder_alloc;
     PROJECTSTATES.save(deps.storage, project_id.u128().into(), &x)?;
     Ok(Response::new())
 }

@@ -19,25 +19,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "Staking"
-version = "0.0.1"
-dependencies = [
- "Interface",
- "cosmwasm-bignumber",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw-storage-plus",
- "cw2",
- "cw20",
- "schemars",
- "serde",
- "terra-cosmwasm",
- "terraswap",
- "thiserror",
-]
-
-[[package]]
 name = "base64"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -582,6 +563,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c01a0c15da1b0b0e1494112e7af814a678fec9bd157881b49beac661e9b6f32"
 dependencies = [
  "der",
+]
+
+[[package]]
+name = "staking"
+version = "0.0.1"
+dependencies = [
+ "Interface",
+ "cosmwasm-bignumber",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-storage-plus",
+ "cw2",
+ "cw20",
+ "schemars",
+ "serde",
+ "terra-cosmwasm",
+ "terraswap",
+ "thiserror",
 ]
 
 [[package]]
