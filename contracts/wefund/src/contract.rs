@@ -1117,7 +1117,7 @@ pub fn try_closewhitelist(
                 x.whitelist[i].allocation = x.holder_ticket * Uint128::from(50u128);
             }
             CardType::Silver => {
-                x.whitelist[i].allocation = x.holder_ticket * Uint128::from(110u128);
+                x.whitelist[i].allocation = x.holder_ticket * Uint128::from(11u128);
             }
             CardType::Bronze => {
                 x.whitelist[i].allocation = x.holder_ticket;
