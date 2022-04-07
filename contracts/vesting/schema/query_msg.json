@@ -49,6 +49,30 @@
     {
       "type": "object",
       "required": [
+        "get_user_info"
+      ],
+      "properties": {
+        "get_user_info": {
+          "type": "object",
+          "required": [
+            "project_id",
+            "wallet"
+          ],
+          "properties": {
+            "project_id": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "wallet": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "get_balance"
       ],
       "properties": {

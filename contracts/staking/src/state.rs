@@ -7,6 +7,7 @@ use Interface::staking::{ExecuteMsg, InstantiateMsg, UserInfo, CardInfo, CardTyp
 pub const OWNER: Item<Addr> = Item::new("owner");
 pub const START_TIME: Item<Uint128> = Item::new("start_time");
 pub const REWARD_TOKEN: Item<Addr> = Item::new("reward_token");
+pub const DECIMALS: Item<u8> = Item::new("reward token decimals");
 
 pub const USER_INFOS: Map<Addr, UserInfo> = Map::new("user infos");
 pub const CARD_INFOS: Item<Vec<CardInfo>> = Item::new("card infos");

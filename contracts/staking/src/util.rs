@@ -4,7 +4,7 @@ use cosmwasm_std::{ Storage, Uint128, Addr, StdResult, StdError, Response, Env, 
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, BalanceResponse as Cw20BalanceResponse, TokenInfoResponse};
 
 use crate::state::{ OWNER, PLATIUM_CARD_NUMBER, GOLD_CARD_NUMBER, SILVER_CARD_NUMBER,
-    BRONZE_CARD_NUMBER, CARD_INFOS, USER_INFOS, REWARD_TOKEN, START_TIME,
+    BRONZE_CARD_NUMBER, CARD_INFOS, USER_INFOS, REWARD_TOKEN, START_TIME, DECIMALS,
 };
 use Interface::staking::{ExecuteMsg, InstantiateMsg, UserInfo, CardInfo, CardType};
 
@@ -18,10 +18,13 @@ pub fn check_onlyowner(storage: &dyn Storage, sender: Addr) -> Result<Response, 
 
 pub fn get_cardtype(storage: &dyn Storage, amount: Uint128) -> StdResult<CardType>
 {
-    let platium = Uint128::from(100_000u128);
-    let gold = Uint128::from(40_000u128);
-    let silver = Uint128::from(10_000u128);
-    let bronz = Uint128::from(1_000u128);
+    let decimals = DECIMALS.load(storage)?;
+    let one = Uint128::from((10u32).pow(decimals as u32));
+    let platium = Uint128::from(100_000u128) * one;
+    let gold = Uint128::from(40_000u128) * one;
+    let silver = Uint128::from(10_000u128) * one;
+    let bronz = Uint128::from(1_000u128) * one;
+
     if amount >= platium {
         return Ok(CardType::Platium);
     } else if amount >= gold {

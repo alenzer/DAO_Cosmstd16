@@ -11,7 +11,7 @@ use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, BalanceResponse as Cw20BalanceResponse,
 use crate::error::ContractError;
 use Interface::staking::{ExecuteMsg, InstantiateMsg, UserInfo, CardInfo, CardType};
 use crate::state::{USER_INFOS, CARD_INFOS, OWNER, REWARD_TOKEN, START_TIME, 
-    PLATIUM_CARD_NUMBER, GOLD_CARD_NUMBER, SILVER_CARD_NUMBER, BRONZE_CARD_NUMBER};
+    PLATIUM_CARD_NUMBER, GOLD_CARD_NUMBER, SILVER_CARD_NUMBER, BRONZE_CARD_NUMBER, DECIMALS};
 
 use crate::util::{check_onlyowner, get_cardtype, manage_card, get_reward,
         update_userinfo, get_token_balance};
@@ -42,6 +42,12 @@ pub fn instantiate(
         .and_then(|s| deps.api.addr_validate(s.as_str()).ok()) 
         .unwrap_or(Addr::unchecked(WFD_TOKEN));
     REWARD_TOKEN.save(deps.storage, &reward_token)?;
+
+    let token_info: TokenInfoResponse = deps.querier.query_wasm_smart(
+        reward_token,
+        &Cw20QueryMsg::TokenInfo{}
+    )?;
+    DECIMALS.save(deps.storage, &token_info.decimals)?;
 
     let start_time = match msg.start_time{
         Some(time) => time,
@@ -112,6 +118,12 @@ pub fn try_setconfig(
         None => reward_token
     };
     REWARD_TOKEN.save(deps.storage, &reward_token)?;
+
+    let token_info: TokenInfoResponse = deps.querier.query_wasm_smart(
+        reward_token,
+        &Cw20QueryMsg::TokenInfo{}
+    )?;
+    DECIMALS.save(deps.storage, &token_info.decimals)?;
 
     Ok(Response::new()
         .add_attribute("action", "SetConfig"))                                

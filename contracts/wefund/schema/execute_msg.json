@@ -29,12 +29,6 @@
                 "null"
               ]
             },
-            "fundraising_contract": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
             "vesting_contract": {
               "type": [
                 "string",
@@ -61,13 +55,17 @@
         "add_project": {
           "type": "object",
           "required": [
+            "cofounder_name",
+            "country",
             "creator_wallet",
+            "professional_link",
             "project_collected",
             "project_company",
             "project_createddate",
             "project_description",
             "project_ecosystem",
             "project_email",
+            "project_id",
             "project_logo",
             "project_milestones",
             "project_saft",
@@ -75,11 +73,22 @@
             "project_title",
             "project_website",
             "project_whitepaper",
+            "service_charity",
+            "service_wefund",
             "token_addr",
             "vesting"
           ],
           "properties": {
+            "cofounder_name": {
+              "type": "string"
+            },
+            "country": {
+              "type": "string"
+            },
             "creator_wallet": {
+              "type": "string"
+            },
+            "professional_link": {
               "type": "string"
             },
             "project_collected": {
@@ -99,6 +108,9 @@
             },
             "project_email": {
               "type": "string"
+            },
+            "project_id": {
+              "$ref": "#/definitions/Uint128"
             },
             "project_logo": {
               "type": "string"
@@ -125,6 +137,12 @@
               "type": "string"
             },
             "project_whitepaper": {
+              "type": "string"
+            },
+            "service_charity": {
+              "type": "string"
+            },
+            "service_wefund": {
               "type": "string"
             },
             "token_addr": {
@@ -182,7 +200,7 @@
               "type": "string"
             },
             "fundraising_stage": {
-              "type": "string"
+              "$ref": "#/definitions/Uint128"
             },
             "otherchain": {
               "type": "string"
@@ -310,43 +328,11 @@
         "wefund_approve": {
           "type": "object",
           "required": [
-            "deadline",
             "project_id"
           ],
           "properties": {
-            "deadline": {
-              "$ref": "#/definitions/Uint128"
-            },
             "project_id": {
               "$ref": "#/definitions/Uint128"
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "set_community_vote"
-      ],
-      "properties": {
-        "set_community_vote": {
-          "type": "object",
-          "required": [
-            "project_id",
-            "voted",
-            "wallet"
-          ],
-          "properties": {
-            "project_id": {
-              "$ref": "#/definitions/Uint128"
-            },
-            "voted": {
-              "type": "boolean"
-            },
-            "wallet": {
-              "type": "string"
             }
           }
         }
@@ -370,7 +356,7 @@
               "$ref": "#/definitions/Uint128"
             },
             "stage": {
-              "type": "string"
+              "$ref": "#/definitions/Uint128"
             }
           }
         }
@@ -448,12 +434,90 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "open_whitelist"
+      ],
+      "properties": {
+        "open_whitelist": {
+          "type": "object",
+          "required": [
+            "holder_alloc",
+            "project_id"
+          ],
+          "properties": {
+            "holder_alloc": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "project_id": {
+              "$ref": "#/definitions/Uint128"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "register_whitelist"
+      ],
+      "properties": {
+        "register_whitelist": {
+          "type": "object",
+          "required": [
+            "card_type",
+            "project_id"
+          ],
+          "properties": {
+            "card_type": {
+              "$ref": "#/definitions/CardType"
+            },
+            "project_id": {
+              "$ref": "#/definitions/Uint128"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "close_whitelist"
+      ],
+      "properties": {
+        "close_whitelist": {
+          "type": "object",
+          "required": [
+            "project_id"
+          ],
+          "properties": {
+            "project_id": {
+              "$ref": "#/definitions/Uint128"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {
     "Addr": {
       "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
       "type": "string"
+    },
+    "CardType": {
+      "type": "string",
+      "enum": [
+        "Platium",
+        "Gold",
+        "Silver",
+        "Bronze",
+        "Other"
+      ]
     },
     "Milestone": {
       "type": "object",
@@ -465,6 +529,7 @@
         "milestone_startdate",
         "milestone_status",
         "milestone_step",
+        "milestone_type",
         "milestone_votes"
       ],
       "properties": {
@@ -489,6 +554,9 @@
         "milestone_step": {
           "$ref": "#/definitions/Uint128"
         },
+        "milestone_type": {
+          "type": "string"
+        },
         "milestone_votes": {
           "type": "array",
           "items": {
@@ -502,6 +570,7 @@
       "required": [
         "teammember_description",
         "teammember_linkedin",
+        "teammember_name",
         "teammember_role"
       ],
       "properties": {
@@ -509,6 +578,9 @@
           "type": "string"
         },
         "teammember_linkedin": {
+          "type": "string"
+        },
+        "teammember_name": {
           "type": "string"
         },
         "teammember_role": {
@@ -523,17 +595,14 @@
     "VestingParameter": {
       "type": "object",
       "required": [
-        "stage",
         "stage_after",
         "stage_amount",
         "stage_period",
         "stage_price",
-        "stage_soon"
+        "stage_soon",
+        "stage_title"
       ],
       "properties": {
-        "stage": {
-          "type": "string"
-        },
         "stage_after": {
           "$ref": "#/definitions/Uint128"
         },
@@ -548,6 +617,9 @@
         },
         "stage_soon": {
           "$ref": "#/definitions/Uint128"
+        },
+        "stage_title": {
+          "type": "string"
         }
       }
     },

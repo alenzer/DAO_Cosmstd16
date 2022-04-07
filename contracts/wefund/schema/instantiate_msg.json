@@ -21,12 +21,6 @@
         "null"
       ]
     },
-    "fundraising_contract": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
     "vesting_contract": {
       "type": [
         "string",

@@ -34,7 +34,8 @@
             "admin",
             "project_id",
             "start_time",
-            "token_addr"
+            "token_addr",
+            "vesting_params"
           ],
           "properties": {
             "admin": {
@@ -48,6 +49,36 @@
             },
             "token_addr": {
               "type": "string"
+            },
+            "vesting_params": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/VestingParameter"
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "start_release"
+      ],
+      "properties": {
+        "start_release": {
+          "type": "object",
+          "required": [
+            "project_id",
+            "start_time"
+          ],
+          "properties": {
+            "project_id": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "start_time": {
+              "$ref": "#/definitions/Uint128"
             }
           }
         }
@@ -140,41 +171,15 @@
     {
       "type": "object",
       "required": [
-        "set_seed_users"
+        "add_user"
       ],
       "properties": {
-        "set_seed_users": {
-          "type": "object",
-          "required": [
-            "project_id",
-            "user_infos"
-          ],
-          "properties": {
-            "project_id": {
-              "$ref": "#/definitions/Uint128"
-            },
-            "user_infos": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/UserInfo"
-              }
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "add_seed_user"
-      ],
-      "properties": {
-        "add_seed_user": {
+        "add_user": {
           "type": "object",
           "required": [
             "amount",
             "project_id",
+            "stage",
             "wallet"
           ],
           "properties": {
@@ -182,6 +187,9 @@
               "$ref": "#/definitions/Uint128"
             },
             "project_id": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "stage": {
               "$ref": "#/definitions/Uint128"
             },
             "wallet": {
@@ -195,17 +203,21 @@
     {
       "type": "object",
       "required": [
-        "set_presale_users"
+        "set_users"
       ],
       "properties": {
-        "set_presale_users": {
+        "set_users": {
           "type": "object",
           "required": [
             "project_id",
+            "stage",
             "user_infos"
           ],
           "properties": {
             "project_id": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "stage": {
               "$ref": "#/definitions/Uint128"
             },
             "user_infos": {
@@ -213,89 +225,6 @@
               "items": {
                 "$ref": "#/definitions/UserInfo"
               }
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "add_presale_user"
-      ],
-      "properties": {
-        "add_presale_user": {
-          "type": "object",
-          "required": [
-            "amount",
-            "project_id",
-            "wallet"
-          ],
-          "properties": {
-            "amount": {
-              "$ref": "#/definitions/Uint128"
-            },
-            "project_id": {
-              "$ref": "#/definitions/Uint128"
-            },
-            "wallet": {
-              "$ref": "#/definitions/Addr"
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "set_i_d_o_users"
-      ],
-      "properties": {
-        "set_i_d_o_users": {
-          "type": "object",
-          "required": [
-            "project_id",
-            "user_infos"
-          ],
-          "properties": {
-            "project_id": {
-              "$ref": "#/definitions/Uint128"
-            },
-            "user_infos": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/UserInfo"
-              }
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "add_i_d_o_user"
-      ],
-      "properties": {
-        "add_i_d_o_user": {
-          "type": "object",
-          "required": [
-            "amount",
-            "project_id",
-            "wallet"
-          ],
-          "properties": {
-            "amount": {
-              "$ref": "#/definitions/Uint128"
-            },
-            "project_id": {
-              "$ref": "#/definitions/Uint128"
-            },
-            "wallet": {
-              "$ref": "#/definitions/Addr"
             }
           }
         }
@@ -351,35 +280,31 @@
       "type": "object",
       "required": [
         "config",
-        "ido_users",
-        "presale_users",
         "project_id",
-        "seed_users",
+        "total",
+        "users",
         "vest_param"
       ],
       "properties": {
         "config": {
           "$ref": "#/definitions/Config"
         },
-        "ido_users": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/UserInfo"
-          }
-        },
-        "presale_users": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/UserInfo"
-          }
-        },
         "project_id": {
           "$ref": "#/definitions/Uint128"
         },
-        "seed_users": {
+        "total": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/UserInfo"
+            "$ref": "#/definitions/Uint128"
+          }
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/UserInfo"
+            }
           }
         },
         "vest_param": {
