@@ -330,29 +330,17 @@ pub fn try_setmilestonevote(deps: DepsMut, _env:Env, info:MessageInfo, project_i
     let mut deps = deps;
     if all_voted{
         x.milestone_states[step].milestone_status = Uint128::new(1); //switch to releasing status
-        //-----------------release function---------------
-        let res = execute(deps.branch(), _env, info, 
-                    ExecuteMsg::ReleaseMilestone{project_id});
-
-        x.milestone_states[step].milestone_status = Uint128::new(2); //switch to released status
-        x.project_milestonestep += Uint128::new(1); //switch to next milestone step
-        
-        //-----------check milestone done---------------------
-        if x.project_milestonestep >= Uint128::new(x.milestone_states.len() as u128){
-            x.project_status = ProjectStatus::Done; //switch to project done status
-        }
 
         //-------update-------------------------
         PROJECTSTATES.update(deps.storage, project_id.u128().into(), |op| match op {
             None => Err(ContractError::NotRegisteredProject {}),
             Some(mut project) => {
                 project.milestone_states = x.milestone_states;
-                project.project_milestonestep = x.project_milestonestep;
-                project.project_status = x.project_status;
                 Ok(project)
             }
         })?;
-        return res;
+
+        return try_releasemilestone(deps.branch(), _env, project_id)
     }
     //-------update-------------------------
     PROJECTSTATES.update(deps.storage, project_id.u128().into(), |op| match op {

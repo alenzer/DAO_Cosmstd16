@@ -19,7 +19,7 @@ use crate::contract::{UST};
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
-        1 => {
+        1 => {//after deposit
             let project_id = PROJECT_ID.load(deps.storage)?;
             let mut x:ProjectState = PROJECTSTATES.load(deps.storage, project_id.u128().into())?;
 
@@ -37,6 +37,8 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
                 denom: "aust".to_string(),
                 amount: amount
             };
+            x.aust_amount += amount;
+            
             PROJECTSTATES.save(deps.storage, project_id.u128().into(), &x)?;
             Ok(Response::new()
                 .add_attribute("action", "save aust amount")
@@ -77,6 +79,15 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
             };
 
             //--------update project info-------------------
+
+            x.milestone_states[step].milestone_status = Uint128::new(2); //switch to released status
+            x.project_milestonestep += Uint128::new(1); //switch to next milestone step
+            
+            //-----------check milestone done---------------------
+            if x.project_milestonestep >= Uint128::new(x.milestone_states.len() as u128){
+                x.project_status = ProjectStatus::Done; //switch to project done status
+            }
+
             x.aust_amount -= AUST_AMOUNT.load(deps.storage)?;
             x.backerbacked_amount -= withdraw_amount;
             PROJECTSTATES.save(deps.storage, project_id.u128().into(), &x)?;
@@ -113,7 +124,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
             PROJECTSTATES.save(deps.storage, project_id.u128().into(), &x)?;
 
             Ok(Response::new()
-                .add_message(send2_creator)
+                // .add_message(send2_creator)
                 .add_attribute("action", "send2 creator")
             )
         },
