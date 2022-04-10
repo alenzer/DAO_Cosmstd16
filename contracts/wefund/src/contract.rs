@@ -726,7 +726,7 @@ pub fn try_addproject(
         project_milestonestep: Uint128::zero(), //first milestonestep
 
         whitelist: Vec::new(),
-        holder_alloc: Uint128::zero(),
+        holder_alloc: Uint128::from(80u128),
         holder_ticket: Uint128::zero(),
         community_ticket: Uint128::zero(),
 //-------------------------------------------
@@ -764,7 +764,7 @@ pub fn try_addproject(
     }
 
     let config = CONFIG.load(deps.storage)?;
-    if config.vesting_contract != "".to_string() && token_addr != "".to_string()
+    if config.vesting_contract != "".to_string()
     {
         let mut vesting_params: Vec<VestingParam> = Vec::new();
         for param in _vesting{
@@ -973,7 +973,7 @@ pub fn try_back2project(
         1
     );
 
-    //---------send to Wefund with 5/105--------------------
+    //---------send to Wefund with 5/100--------------------
     let bank_wefund = BankMsg::Send { 
         to_address: config.wefund.to_string(),
         amount: vec![fund_wefund] 

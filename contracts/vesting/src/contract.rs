@@ -183,7 +183,7 @@ pub fn try_claimpendingtokens(deps: DepsMut, _env: Env, info: MessageInfo, proje
     }
 
     let bank_cw20 = WasmMsg::Execute {
-        contract_addr: String::from(x.config.token_addr),
+        contract_addr: x.config.token_addr,
         msg: to_binary(&Cw20ExecuteMsg::Transfer {
             recipient: info.sender.to_string(),
             amount: amount,
@@ -309,11 +309,20 @@ pub fn try_addproject(deps:DepsMut, info:MessageInfo,
         _vesting_params = vec![seed_param, presale_param, ido_param];
     }
 
+    let _project_info = PROJECT_INFOS.may_load(deps.storage, project_id.u128().into())?;
     let mut users = Vec::new();
     let mut total = Vec::new();
-    for _ in _vesting_params.clone(){
-        users.push(Vec::new());
-        total.push(Uint128::zero())
+
+    if _project_info != None {
+        let _project_info = _project_info.unwrap();
+        users = _project_info.users;
+        total = _project_info.total;
+    }
+    else{
+        for _ in _vesting_params.clone(){
+            users.push(Vec::new());
+            total.push(Uint128::zero())
+        }
     }
 
     let project_info: ProjectInfo = ProjectInfo{
@@ -333,10 +342,10 @@ pub fn try_setconfig(deps:DepsMut, info:MessageInfo, admin: String)
     -> Result<Response, ContractError>
 {
     // //-----------check owner--------------------------
-    // let owner = OWNER.load(deps.storage).unwrap();
-    // if info.sender != owner {
-    //     return Err(ContractError::Unauthorized{});
-    // }
+    let owner = OWNER.load(deps.storage).unwrap();
+    if info.sender != owner {
+        return Err(ContractError::Unauthorized{});
+    }
 
     let admin_addr = deps.api.addr_validate(&admin).unwrap();
     OWNER.save(deps.storage, &admin_addr)?;
